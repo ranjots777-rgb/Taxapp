@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Taxi Umsatz App</title>
+  <title>Taxi Umsatz Pro</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -18,21 +18,43 @@
     }
   </script>
 </head>
-<body class="bg-brand-dark text-gray-100 min-h-screen font-sans pb-12">
+<body class="bg-brand-dark text-gray-100 min-h-screen font-sans pb-16">
   <div class="max-w-md mx-auto p-4">
-    <!-- Header -->
-    <header class="flex justify-between items-center mb-6 border-b border-gray-800 pb-4">
+    <!-- Header mit Profil-Auswahl -->
+    <header class="flex justify-between items-center mb-4 border-b border-gray-800 pb-3">
       <div>
-        <h1 class="text-2xl font-bold text-yellow-400">🚖 Taxi Umsatz</h1>
-        <p class="text-xs text-gray-400">Lokal & Unterwegs</p>
+        <h1 class="text-xl font-bold text-yellow-400">🚖 Taxi Umsatz Pro</h1>
+        <p class="text-xs text-gray-400">Lokal & Multi-Profil</p>
       </div>
-      <button onclick="exportCSV()" class="bg-gray-800 hover:bg-gray-700 text-xs px-3 py-2 rounded-lg border border-gray-700 flex items-center gap-1">
-        📥 CSV
-      </button>
+      <div class="flex items-center gap-2">
+        <select id="activeProfile" onchange="changeProfile()" class="bg-gray-800 text-yellow-400 text-xs font-bold px-2 py-1.5 rounded-lg border border-gray-700 focus:outline-none">
+          <option value="Ranjot">Ranjot</option>
+          <option value="Bruder">Bruder</option>
+        </select>
+      </div>
     </header>
 
+    <!-- Export & Report Sektion -->
+    <div class="bg-brand-card p-3 rounded-xl border border-gray-800 mb-4 space-y-2">
+      <div class="text-xs font-semibold text-gray-300">Berichte & Export</div>
+      <div class="grid grid-cols-4 gap-1">
+        <button onclick="exportReport('day')" class="bg-gray-800 hover:bg-gray-700 text-xs py-1.5 rounded text-gray-200">Heute</button>
+        <button onclick="exportReport('week')" class="bg-gray-800 hover:bg-gray-700 text-xs py-1.5 rounded text-gray-200">Woche</button>
+        <button onclick="exportReport('month')" class="bg-gray-800 hover:bg-gray-700 text-xs py-1.5 rounded text-gray-200">Monat</button>
+        <button onclick="exportReport('year')" class="bg-gray-800 hover:bg-gray-700 text-xs py-1.5 rounded text-gray-200">Jahr</button>
+      </div>
+      <div class="flex gap-2 pt-1">
+        <select id="exportProfileScope" class="bg-gray-900 border border-gray-700 text-xs rounded p-1.5 text-gray-300 flex-1">
+          <option value="single">Nur aktives Profil</option>
+          <option value="both">Beide Profile zusammen</option>
+        </select>
+        <button onclick="downloadCSV()" class="bg-gray-800 hover:bg-gray-700 text-xs px-3 py-1.5 rounded border border-gray-700 font-semibold text-yellow-400">📥 CSV</button>
+        <button onclick="window.print()" class="bg-yellow-400 text-black text-xs px-3 py-1.5 rounded font-bold">🖨️ PDF</button>
+      </div>
+    </div>
+
     <!-- Stat Cards -->
-    <div class="grid grid-cols-2 gap-3 mb-6">
+    <div class="grid grid-cols-2 gap-3 mb-4">
       <div class="bg-brand-card p-3 rounded-xl border border-gray-800">
         <span class="text-xs text-gray-400">Einnahmen heute</span>
         <div id="statToday" class="text-xl font-bold text-green-400">0,00 €</div>
@@ -44,7 +66,7 @@
     </div>
 
     <!-- Navigation Tabs -->
-    <div class="flex gap-2 mb-6 bg-gray-900 p-1 rounded-xl">
+    <div class="flex gap-2 mb-4 bg-gray-900 p-1 rounded-xl">
       <button onclick="switchTab('fahrt')" id="tabFahrt" class="flex-1 py-2 text-sm font-semibold rounded-lg bg-yellow-400 text-black">Fahrt</button>
       <button onclick="switchTab('ausgabe')" id="tabAusgabe" class="flex-1 py-2 text-sm font-semibold rounded-lg text-gray-400">Ausgabe</button>
       <button onclick="switchTab('verlauf')" id="tabVerlauf" class="flex-1 py-2 text-sm font-semibold rounded-lg text-gray-400">Verlauf</button>
@@ -109,7 +131,7 @@
       </button>
     </div>
 
-    <!-- TAB 3: VERLAUF & BEARBEITEN -->
+    <!-- TAB 3: VERLAUF -->
     <div id="secVerlauf" class="hidden">
       <div id="historyList" class="space-y-2"></div>
     </div>
@@ -117,18 +139,38 @@
 
   <!-- MODAL: EINTRAG BEARBEITEN -->
   <div id="editModal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 hidden z-50">
-    <div class="bg-brand-card w-full max-w-sm rounded-2xl p-5 border border-gray-800 space-y-4">
+    <div class="bg-brand-card w-full max-w-sm rounded-2xl p-5 border border-gray-800 space-y-3">
       <h3 class="text-lg font-bold text-yellow-400">Eintrag bearbeiten</h3>
       <input type="hidden" id="editIndex">
 
+      <div id="editRideFields" class="space-y-3">
+        <div>
+          <label class="block text-xs text-gray-400 mb-1">Fahrttyp</label>
+          <select id="editType" class="w-full bg-gray-900 border border-gray-700 rounded-xl p-2.5 text-white text-sm">
+            <option value="Funk">Funk</option>
+            <option value="Einstieg">Einstieg</option>
+            <option value="Flughafen">Flughafen</option>
+            <option value="Pauschale">Pauschale</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs text-gray-400 mb-1">Zahlungsart</label>
+          <select id="editPay" class="w-full bg-gray-900 border border-gray-700 rounded-xl p-2.5 text-white text-sm">
+            <option value="Bar">Bar</option>
+            <option value="Karte">Karte</option>
+            <option value="App">App</option>
+          </select>
+        </div>
+      </div>
+
       <div>
-        <label class="block text-xs text-gray-400 mb-1">Betrag (€)</label>
-        <input type="number" id="editPrice" step="0.10" class="w-full bg-gray-900 border border-gray-700 rounded-xl p-3 text-white">
+        <label class="block text-xs text-gray-400 mb-1" id="editPriceLabel">Betrag (€)</label>
+        <input type="number" id="editPrice" step="0.10" class="w-full bg-gray-900 border border-gray-700 rounded-xl p-3 text-white font-bold">
       </div>
 
       <div id="editTipGroup">
         <label class="block text-xs text-gray-400 mb-1">Trinkgeld (€)</label>
-        <input type="number" id="editTip" step="0.10" class="w-full bg-gray-900 border border-gray-700 rounded-xl p-3 text-white">
+        <input type="number" id="editTip" step="0.10" class="w-full bg-gray-900 border border-gray-700 rounded-xl p-3 text-white font-bold">
       </div>
 
       <div class="flex gap-2 pt-2">
@@ -141,13 +183,25 @@
   <script>
     let selectedType = 'Funk';
     let selectedPay = 'Bar';
-    let entries = JSON.parse(localStorage.getItem('taxi_entries') || '[]');
+    let currentProfile = 'Ranjot';
+    let entries = JSON.parse(localStorage.getItem('taxi_entries_multi') || '{}');
+
+    function getProfileEntries(profile) {
+      return entries[profile] || [];
+    }
+
+    function changeProfile() {
+      currentProfile = document.getElementById('activeProfile').value;
+      updateStats();
+      renderHistory();
+    }
 
     function updateStats() {
       const today = new Date().toISOString().split('T')[0];
       let todayInc = 0, todayExp = 0;
+      const profileData = getProfileEntries(currentProfile);
 
-      entries.forEach(e => {
+      profileData.forEach(e => {
         const d = e.timestamp.split('T')[0];
         if (d === today) {
           if (e.kind === 'fahrt') todayInc += (e.price || 0) + (e.tip || 0);
@@ -186,7 +240,8 @@
       const tip = parseFloat(document.getElementById('inputTip').value) || 0;
       if (price <= 0) return alert('Bitte Fahrpreis eingeben');
 
-      entries.unshift({
+      if (!entries[currentProfile]) entries[currentProfile] = [];
+      entries[currentProfile].unshift({
         id: Date.now(),
         kind: 'fahrt',
         type: selectedType,
@@ -196,7 +251,7 @@
         timestamp: new Date().toISOString()
       });
 
-      localStorage.setItem('taxi_entries', JSON.stringify(entries));
+      localStorage.setItem('taxi_entries_multi', JSON.stringify(entries));
       document.getElementById('inputPrice').value = '';
       document.getElementById('inputTip').value = '';
       updateStats();
@@ -209,7 +264,8 @@
       const cat = document.getElementById('expCategory').value;
       if (amount <= 0) return alert('Bitte Betrag eingeben');
 
-      entries.unshift({
+      if (!entries[currentProfile]) entries[currentProfile] = [];
+      entries[currentProfile].unshift({
         id: Date.now(),
         kind: 'ausgabe',
         category: cat,
@@ -217,7 +273,7 @@
         timestamp: new Date().toISOString()
       });
 
-      localStorage.setItem('taxi_entries', JSON.stringify(entries));
+      localStorage.setItem('taxi_entries_multi', JSON.stringify(entries));
       document.getElementById('expAmount').value = '';
       updateStats();
       renderHistory();
@@ -226,13 +282,15 @@
 
     function renderHistory() {
       const container = document.getElementById('historyList');
-      if (entries.length === 0) {
-        container.innerHTML = '<p class="text-center text-gray-500 text-sm py-4">Noch keine Einträge vorhanden.</p>';
+      const profileData = getProfileEntries(currentProfile);
+
+      if (profileData.length === 0) {
+        container.innerHTML = `<p class="text-center text-gray-500 text-sm py-4">Noch keine Einträge für ${currentProfile}.</p>`;
         return;
       }
 
-      container.innerHTML = entries.map((e, index) => {
-        const timeStr = new Date(e.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      container.innerHTML = profileData.map((e, index) => {
+        const timeStr = new Date(e.timestamp).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' });
         if (e.kind === 'fahrt') {
           return `
             <div class="bg-brand-card p-3 rounded-xl border border-gray-800 flex justify-between items-center">
@@ -240,7 +298,7 @@
                 <div class="font-bold text-sm">${e.type} (${e.pay})</div>
                 <div class="text-xs text-gray-400">${timeStr} · Trinkgeld: ${e.tip.toFixed(2)} €</div>
               </div>
-              <div class="text-right flex items-center gap-3">
+              <div class="text-right flex items-center gap-2">
                 <span class="font-bold text-green-400">+${(e.price + e.tip).toFixed(2)} €</span>
                 <button onclick="openEditModal(${index})" class="text-xs bg-gray-800 px-2 py-1 rounded text-gray-300">✏️</button>
                 <button onclick="deleteEntry(${index})" class="text-xs bg-red-950/50 text-red-400 px-2 py-1 rounded">🗑️</button>
@@ -254,7 +312,7 @@
                 <div class="font-bold text-sm text-red-400">Ausgabe: ${e.category}</div>
                 <div class="text-xs text-gray-400">${timeStr}</div>
               </div>
-              <div class="text-right flex items-center gap-3">
+              <div class="text-right flex items-center gap-2">
                 <span class="font-bold text-red-400">-${e.amount.toFixed(2)} €</span>
                 <button onclick="openEditModal(${index})" class="text-xs bg-gray-800 px-2 py-1 rounded text-gray-300">✏️</button>
                 <button onclick="deleteEntry(${index})" class="text-xs bg-red-950/50 text-red-400 px-2 py-1 rounded">🗑️</button>
@@ -266,15 +324,21 @@
     }
 
     function openEditModal(index) {
-      const e = entries[index];
+      const e = getProfileEntries(currentProfile)[index];
       document.getElementById('editIndex').value = index;
       if (e.kind === 'fahrt') {
+        document.getElementById('editRideFields').classList.remove('hidden');
+        document.getElementById('editType').value = e.type;
+        document.getElementById('editPay').value = e.pay;
         document.getElementById('editPrice').value = e.price;
         document.getElementById('editTip').value = e.tip;
         document.getElementById('editTipGroup').classList.remove('hidden');
+        document.getElementById('editPriceLabel').innerText = 'Fahrpreis (€)';
       } else {
+        document.getElementById('editRideFields').classList.add('hidden');
         document.getElementById('editPrice').value = e.amount;
         document.getElementById('editTipGroup').classList.add('hidden');
+        document.getElementById('editPriceLabel').innerText = 'Ausgabe Betrag (€)';
       }
       document.getElementById('editModal').classList.remove('hidden');
     }
@@ -285,17 +349,19 @@
 
     function applyEdit() {
       const index = parseInt(document.getElementById('editIndex').value);
-      const e = entries[index];
+      const e = entries[currentProfile][index];
       const newPrice = parseFloat(document.getElementById('editPrice').value) || 0;
 
       if (e.kind === 'fahrt') {
+        e.type = document.getElementById('editType').value;
+        e.pay = document.getElementById('editPay').value;
         e.price = newPrice;
         e.tip = parseFloat(document.getElementById('editTip').value) || 0;
       } else {
         e.amount = newPrice;
       }
 
-      localStorage.setItem('taxi_entries', JSON.stringify(entries));
+      localStorage.setItem('taxi_entries_multi', JSON.stringify(entries));
       closeEditModal();
       updateStats();
       renderHistory();
@@ -303,8 +369,8 @@
 
     function deleteEntry(index) {
       if (confirm('Eintrag wirklich löschen?')) {
-        entries.splice(index, 1);
-        localStorage.setItem('taxi_entries', JSON.stringify(entries));
+        entries[currentProfile].splice(index, 1);
+        localStorage.setItem('taxi_entries_multi', JSON.stringify(entries));
         updateStats();
         renderHistory();
       }
@@ -328,20 +394,68 @@
       }
     }
 
-    function exportCSV() {
-      let csv = 'Datum;Typ;Art;Zahlung;Preis;Trinkgeld;Ausgabe\n';
-      entries.forEach(e => {
-        if (e.kind === 'fahrt') {
-          csv += `${e.timestamp};Fahrt;${e.type};${e.pay};${e.price};${e.tip};0\n`;
-        } else {
-          csv += `${e.timestamp};Ausgabe;${e.category};-;0;0;${e.amount}\n`;
-        }
+    function exportReport(range) {
+      const scope = document.getElementById('exportProfileScope').value;
+      let targetProfiles = scope === 'both' ? Object.keys(entries) : [currentProfile];
+      const now = new Date();
+      
+      let filtered = [];
+      targetProfiles.forEach(prof => {
+        const profData = entries[prof] || [];
+        profData.forEach(e => {
+          const d = new Date(e.timestamp);
+          if (range === 'day' && d.toDateString() === now.toDateString()) {
+            filtered.push({...e, profile: prof});
+          } else if (range === 'week') {
+            const oneJan = new Date(now.getFullYear(), 0, 1);
+            const weekNow = Math.ceil((((now - oneJan) / 86400000) + oneJan.getDay() + 1) / 7);
+            const weekEntry = Math.ceil((((d - oneJan) / 86400000) + oneJan.getDay() + 1) / 7);
+            if (weekNow === weekEntry && d.getFullYear() === now.getFullYear()) filtered.push({...e, profile: prof});
+          } else if (range === 'month' && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()) {
+            filtered.push({...e, profile: prof});
+          } else if (range === 'year' && d.getFullYear() === now.getFullYear()) {
+            filtered.push({...e, profile: prof});
+          }
+        });
+      });
+
+      if (filtered.length === 0) return alert('Keine Einträge für diesen Zeitraum gefunden.');
+
+      let totalInc = 0, totalTip = 0, totalExp = 0;
+      filtered.forEach(e => {
+        if (e.kind === 'fahrt') { totalInc += e.price; totalTip += e.tip; }
+        else { totalExp += e.amount; }
+      });
+
+      const net = (totalInc + totalTip) - totalExp;
+      alert(`Bericht (${range.toUpperCase()}):
+Einnahmen: ${totalInc.toFixed(2)} €
+Trinkgeld: ${totalTip.toFixed(2)} €
+Ausgaben: ${totalExp.toFixed(2)} €
+-------------------------
+Gewinn: ${net.toFixed(2)} €`);
+    }
+
+    function downloadCSV() {
+      const scope = document.getElementById('exportProfileScope').value;
+      let targetProfiles = scope === 'both' ? Object.keys(entries) : [currentProfile];
+      
+      let csv = 'Profil;Datum;Typ;Art;Zahlung;Preis;Trinkgeld;Ausgabe\n';
+      targetProfiles.forEach(prof => {
+        const profData = entries[prof] || [];
+        profData.forEach(e => {
+          if (e.kind === 'fahrt') {
+            csv += `${prof};${e.timestamp};Fahrt;${e.type};${e.pay};${e.price};${e.tip};0\n`;
+          } else {
+            csv += `${prof};${e.timestamp};Ausgabe;${e.category};-;0;0;${e.amount}\n`;
+          }
+        });
       });
 
       const blob = new Blob([csv], { type: 'text/csv' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = `taxi_umsatz_${new Date().toISOString().split('T')[0]}.csv`;
+      a.download = `taxi_bericht_${currentProfile}_${new Date().toISOString().split('T')[0]}.csv`;
       a.click();
     }
 
