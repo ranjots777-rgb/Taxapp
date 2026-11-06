@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="de" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Taxi Umsatz App</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: { yellow: '#facc15', dark: '#121212', card: '#1e1e1e' }
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-brand-dark text-gray-100 min-h-screen font-sans pb-12">
+  <div class="max-w-md mx-auto p-4">
+    <!-- Header -->
+    <header class="flex justify-between items-center mb-6 border-b border-gray-800 pb-4">
+      <div>
+        <h1 class="text-2xl font-bold text-yellow-400">🚖 Taxi Umsatz</h1>
+        <p class="text-xs text-gray-400">Lokal & Unterwegs</p>
+      </div>
+      <button onclick="exportCSV()" class="bg-gray-800 hover:bg-gray-700 text-xs px-3 py-2 rounded-lg border border-gray-700 flex items-center gap-1">
+        📥 CSV
+      </button>
+    </header>
+
+    <!-- Stat Cards -->
+    <div class="grid grid-cols-2 gap-3 mb-6">
+      <div class="bg-brand-card p-3 rounded-xl border border-gray-800">
+        <span class="text-xs text-gray-400">Einnahmen heute</span>
+        <div id="statToday" class="text-xl font-bold text-green-400">0,00 €</div>
+      </div>
+      <div class="bg-brand-card p-3 rounded-xl border border-gray-800">
+        <span class="text-xs text-gray-400">Ausgaben heute</span>
+        <div id="statExpenses" class="text-xl font-bold text-red-400">0,00 €</div>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="flex gap-2 mb-6 bg-gray-900 p-1 rounded-xl">
+      <button onclick="switchTab('fahrt')" id="tabFahrt" class="flex-1 py-2 text-sm font-semibold rounded-lg bg-yellow-400 text-black">Fahrt</button>
+      <button onclick="switchTab('ausgabe')" id="tabAusgabe" class="flex-1 py-2 text-sm font-semibold rounded-lg text-gray-400">Ausgabe</button>
+      <button onclick="switchTab('verlauf')" id="tabVerlauf" class="flex-1 py-2 text-sm font-semibold rounded-lg text-gray-400">Verlauf</button>
+    </div>
+
+    <!-- TAB 1: FAHRT EINTRAGEN -->
+    <div id="secFahrt" class="space-y-4">
+      <div>
+        <label class="block text-xs font-semibold mb-1 text-gray-300">Fahrttyp</label>
+        <div class="grid grid-cols-2 gap-2">
+          <button type="button" onclick="selectType('Funk')" class="type-btn border-2 border-yellow-400 bg-yellow-400/10 text-yellow-400 p-3 rounded-xl font-bold text-sm">Funk</button>
+          <button type="button" onclick="selectType('Einstieg')" class="type-btn border-2 border-gray-800 bg-brand-card text-gray-300 p-3 rounded-xl font-bold text-sm">Einstieg</button>
+          <button type="button" onclick="selectType('Flughafen')" class="type-btn border-2 border-gray-800 bg-brand-card text-gray-300 p-3 rounded-xl font-bold text-sm">Flughafen</button>
+          <button type="button" onclick="selectType('Pauschale')" class="type-btn border-2 border-gray-800 bg-brand-card text-gray-300 p-3 rounded-xl font-bold text-sm">Pauschale</button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs font-semibold mb-1 text-gray-300">Fahrpreis (€)</label>
+          <input type="number" id="inputPrice" step="0.10" placeholder="0.00" class="w-full bg-brand-card border border-gray-700 rounded-xl p-3 text-lg font-bold text-white focus:outline-none focus:border-yellow-400">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1 text-gray-300">Trinkgeld (€)</label>
+          <input type="number" id="inputTip" step="0.10" placeholder="0.00" class="w-full bg-brand-card border border-gray-700 rounded-xl p-3 text-lg font-bold text-white focus:outline-none focus:border-yellow-400">
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold mb-1 text-gray-300">Zahlungsart</label>
+        <div class="grid grid-cols-3 gap-2">
+          <button type="button" onclick="selectPay('Bar')" class="pay-btn border-2 border-yellow-400 bg-yellow-400/10 text-yellow-400 p-2.5 rounded-xl text-sm font-semibold">Bar</button>
+          <button type="button" onclick="selectPay('Karte')" class="pay-btn border-2 border-gray-800 bg-brand-card text-gray-300 p-2.5 rounded-xl text-sm font-semibold">Karte</button>
+          <button type="button" onclick="selectPay('App')" class="pay-btn border-2 border-gray-800 bg-brand-card text-gray-300 p-2.5 rounded-xl text-sm font-semibold">App</button>
+        </div>
+      </div>
+
+      <button onclick="saveRide()" class="w-full bg-yellow-400 text-black font-bold py-4 rounded-xl text-lg shadow-lg hover:bg-yellow-300 mt-2">
+        Fahrt Speichern
+      </button>
+    </div>
+
+    <!-- TAB 2: AUSGABE EINTRAGEN -->
+    <div id="secAusgabe" class="space-y-4 hidden">
+      <div>
+        <label class="block text-xs font-semibold mb-1 text-gray-300">Kategorie</label>
+        <select id="expCategory" class="w-full bg-brand-card border border-gray-700 rounded-xl p-3 text-white">
+          <option value="Tanken">Tanken</option>
+          <option value="Wäsche">Wäsche</option>
+          <option value="Reparatur">Reparatur</option>
+          <option value="Sonstiges">Sonstiges</option>
+        </select>
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold mb-1 text-gray-300">Betrag (€)</label>
+        <input type="number" id="expAmount" step="0.10" placeholder="0.00" class="w-full bg-brand-card border border-gray-700 rounded-xl p-3 text-lg font-bold text-white">
+      </div>
+
+      <button onclick="saveExpense()" class="w-full bg-red-500 text-white font-bold py-4 rounded-xl text-lg hover:bg-red-600 mt-2">
+        Ausgabe Speichern
+      </button>
+    </div>
+
+    <!-- TAB 3: VERLAUF & BEARBEITEN -->
+    <div id="secVerlauf" class="hidden">
+      <div id="historyList" class="space-y-2"></div>
+    </div>
+  </div>
+
+  <!-- MODAL: EINTRAG BEARBEITEN -->
+  <div id="editModal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 hidden z-50">
+    <div class="bg-brand-card w-full max-w-sm rounded-2xl p-5 border border-gray-800 space-y-4">
+      <h3 class="text-lg font-bold text-yellow-400">Eintrag bearbeiten</h3>
+      <input type="hidden" id="editIndex">
+
+      <div>
+        <label class="block text-xs text-gray-400 mb-1">Betrag (€)</label>
+        <input type="number" id="editPrice" step="0.10" class="w-full bg-gray-900 border border-gray-700 rounded-xl p-3 text-white">
+      </div>
+
+      <div id="editTipGroup">
+        <label class="block text-xs text-gray-400 mb-1">Trinkgeld (€)</label>
+        <input type="number" id="editTip" step="0.10" class="w-full bg-gray-900 border border-gray-700 rounded-xl p-3 text-white">
+      </div>
+
+      <div class="flex gap-2 pt-2">
+        <button onclick="closeEditModal()" class="flex-1 bg-gray-800 text-gray-300 py-2.5 rounded-xl text-sm font-semibold">Abbrechen</button>
+        <button onclick="applyEdit()" class="flex-1 bg-yellow-400 text-black py-2.5 rounded-xl text-sm font-bold">Speichern</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let selectedType = 'Funk';
+    let selectedPay = 'Bar';
+    let entries = JSON.parse(localStorage.getItem('taxi_entries') || '[]');
+
+    function updateStats() {
+      const today = new Date().toISOString().split('T')[0];
+      let todayInc = 0, todayExp = 0;
+
+      entries.forEach(e => {
+        const d = e.timestamp.split('T')[0];
+        if (d === today) {
+          if (e.kind === 'fahrt') todayInc += (e.price || 0) + (e.tip || 0);
+          if (e.kind === 'ausgabe') todayExp += (e.amount || 0);
+        }
+      });
+
+      document.getElementById('statToday').innerText = todayInc.toFixed(2).replace('.', ',') + ' €';
+      document.getElementById('statExpenses').innerText = todayExp.toFixed(2).replace('.', ',') + ' €';
+    }
+
+    function selectType(t) {
+      selectedType = t;
+      document.querySelectorAll('.type-btn').forEach(btn => {
+        if (btn.innerText === t) {
+          btn.className = 'type-btn border-2 border-yellow-400 bg-yellow-400/10 text-yellow-400 p-3 rounded-xl font-bold text-sm';
+        } else {
+          btn.className = 'type-btn border-2 border-gray-800 bg-brand-card text-gray-300 p-3 rounded-xl font-bold text-sm';
+        }
+      });
+    }
+
+    function selectPay(p) {
+      selectedPay = p;
+      document.querySelectorAll('.pay-btn').forEach(btn => {
+        if (btn.innerText === p) {
+          btn.className = 'pay-btn border-2 border-yellow-400 bg-yellow-400/10 text-yellow-400 p-2.5 rounded-xl text-sm font-semibold';
+        } else {
+          btn.className = 'pay-btn border-2 border-gray-800 bg-brand-card text-gray-300 p-2.5 rounded-xl text-sm font-semibold';
+        }
+      });
+    }
+
+    function saveRide() {
+      const price = parseFloat(document.getElementById('inputPrice').value) || 0;
+      const tip = parseFloat(document.getElementById('inputTip').value) || 0;
+      if (price <= 0) return alert('Bitte Fahrpreis eingeben');
+
+      entries.unshift({
+        id: Date.now(),
+        kind: 'fahrt',
+        type: selectedType,
+        pay: selectedPay,
+        price,
+        tip,
+        timestamp: new Date().toISOString()
+      });
+
+      localStorage.setItem('taxi_entries', JSON.stringify(entries));
+      document.getElementById('inputPrice').value = '';
+      document.getElementById('inputTip').value = '';
+      updateStats();
+      renderHistory();
+      alert('Fahrt gespeichert!');
+    }
+
+    function saveExpense() {
+      const amount = parseFloat(document.getElementById('expAmount').value) || 0;
+      const cat = document.getElementById('expCategory').value;
+      if (amount <= 0) return alert('Bitte Betrag eingeben');
+
+      entries.unshift({
+        id: Date.now(),
+        kind: 'ausgabe',
+        category: cat,
+        amount,
+        timestamp: new Date().toISOString()
+      });
+
+      localStorage.setItem('taxi_entries', JSON.stringify(entries));
+      document.getElementById('expAmount').value = '';
+      updateStats();
+      renderHistory();
+      alert('Ausgabe gespeichert!');
+    }
+
+    function renderHistory() {
+      const container = document.getElementById('historyList');
+      if (entries.length === 0) {
+        container.innerHTML = '<p class="text-center text-gray-500 text-sm py-4">Noch keine Einträge vorhanden.</p>';
+        return;
+      }
+
+      container.innerHTML = entries.map((e, index) => {
+        const timeStr = new Date(e.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        if (e.kind === 'fahrt') {
+          return `
+            <div class="bg-brand-card p-3 rounded-xl border border-gray-800 flex justify-between items-center">
+              <div>
+                <div class="font-bold text-sm">${e.type} (${e.pay})</div>
+                <div class="text-xs text-gray-400">${timeStr} · Trinkgeld: ${e.tip.toFixed(2)} €</div>
+              </div>
+              <div class="text-right flex items-center gap-3">
+                <span class="font-bold text-green-400">+${(e.price + e.tip).toFixed(2)} €</span>
+                <button onclick="openEditModal(${index})" class="text-xs bg-gray-800 px-2 py-1 rounded text-gray-300">✏️</button>
+                <button onclick="deleteEntry(${index})" class="text-xs bg-red-950/50 text-red-400 px-2 py-1 rounded">🗑️</button>
+              </div>
+            </div>
+          `;
+        } else {
+          return `
+            <div class="bg-brand-card p-3 rounded-xl border border-gray-800 flex justify-between items-center">
+              <div>
+                <div class="font-bold text-sm text-red-400">Ausgabe: ${e.category}</div>
+                <div class="text-xs text-gray-400">${timeStr}</div>
+              </div>
+              <div class="text-right flex items-center gap-3">
+                <span class="font-bold text-red-400">-${e.amount.toFixed(2)} €</span>
+                <button onclick="openEditModal(${index})" class="text-xs bg-gray-800 px-2 py-1 rounded text-gray-300">✏️</button>
+                <button onclick="deleteEntry(${index})" class="text-xs bg-red-950/50 text-red-400 px-2 py-1 rounded">🗑️</button>
+              </div>
+            </div>
+          `;
+        }
+      }).join('');
+    }
+
+    function openEditModal(index) {
+      const e = entries[index];
+      document.getElementById('editIndex').value = index;
+      if (e.kind === 'fahrt') {
+        document.getElementById('editPrice').value = e.price;
+        document.getElementById('editTip').value = e.tip;
+        document.getElementById('editTipGroup').classList.remove('hidden');
+      } else {
+        document.getElementById('editPrice').value = e.amount;
+        document.getElementById('editTipGroup').classList.add('hidden');
+      }
+      document.getElementById('editModal').classList.remove('hidden');
+    }
+
+    function closeEditModal() {
+      document.getElementById('editModal').classList.add('hidden');
+    }
+
+    function applyEdit() {
+      const index = parseInt(document.getElementById('editIndex').value);
+      const e = entries[index];
+      const newPrice = parseFloat(document.getElementById('editPrice').value) || 0;
+
+      if (e.kind === 'fahrt') {
+        e.price = newPrice;
+        e.tip = parseFloat(document.getElementById('editTip').value) || 0;
+      } else {
+        e.amount = newPrice;
+      }
+
+      localStorage.setItem('taxi_entries', JSON.stringify(entries));
+      closeEditModal();
+      updateStats();
+      renderHistory();
+    }
+
+    function deleteEntry(index) {
+      if (confirm('Eintrag wirklich löschen?')) {
+        entries.splice(index, 1);
+        localStorage.setItem('taxi_entries', JSON.stringify(entries));
+        updateStats();
+        renderHistory();
+      }
+    }
+
+    function switchTab(t) {
+      ['secFahrt', 'secAusgabe', 'secVerlauf'].forEach(id => document.getElementById(id).classList.add('hidden'));
+      ['tabFahrt', 'tabAusgabe', 'tabVerlauf'].forEach(id => {
+        document.getElementById(id).className = 'flex-1 py-2 text-sm font-semibold rounded-lg text-gray-400';
+      });
+
+      if (t === 'fahrt') {
+        document.getElementById('secFahrt').classList.remove('hidden');
+        document.getElementById('tabFahrt').className = 'flex-1 py-2 text-sm font-semibold rounded-lg bg-yellow-400 text-black';
+      } else if (t === 'ausgabe') {
+        document.getElementById('secAusgabe').classList.remove('hidden');
+        document.getElementById('tabAusgabe').className = 'flex-1 py-2 text-sm font-semibold rounded-lg bg-yellow-400 text-black';
+      } else {
+        document.getElementById('secVerlauf').classList.remove('hidden');
+        document.getElementById('tabVerlauf').className = 'flex-1 py-2 text-sm font-semibold rounded-lg bg-yellow-400 text-black';
+      }
+    }
+
+    function exportCSV() {
+      let csv = 'Datum;Typ;Art;Zahlung;Preis;Trinkgeld;Ausgabe\n';
+      entries.forEach(e => {
+        if (e.kind === 'fahrt') {
+          csv += `${e.timestamp};Fahrt;${e.type};${e.pay};${e.price};${e.tip};0\n`;
+        } else {
+          csv += `${e.timestamp};Ausgabe;${e.category};-;0;0;${e.amount}\n`;
+        }
+      });
+
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `taxi_umsatz_${new Date().toISOString().split('T')[0]}.csv`;
+      a.click();
+    }
+
+    updateStats();
+    renderHistory();
+  </script>
+</body>
+</html>
