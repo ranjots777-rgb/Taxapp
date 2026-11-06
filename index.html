@@ -218,7 +218,6 @@
           all.push({ ...e, profile: prof });
         });
       });
-      // Sortiere nach Zeit (neueste zuerst)
       all.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
       return all;
     }
@@ -381,7 +380,7 @@
     }
 
     function closeEditModal() {
-      document.getElementById('editModal'].classList.add('hidden');
+      document.getElementById('editModal').classList.add('hidden');
     }
 
     function applyEdit() {
@@ -538,7 +537,7 @@
         }
       });
 
-      const blob = new Blob([csv], { type: 'text/csv' });
+      const blob = new Blob([csv], { type: 'text/csv'	});
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
       a.download = `taxi_gesamtbericht_${new Date().toISOString().split('T')[0]}.csv`;
