@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Taxi Umsatz Pro</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Supabase Client -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
     tailwind.config = {
       darkMode: 'class',
@@ -66,14 +68,14 @@
       </div>
     </div>
 
-    <!-- Stat Cards (Heutige Werte des aktiven Profils) -->
+    <!-- Stat Cards -->
     <div class="grid grid-cols-2 gap-3 mb-4 no-print">
       <div class="bg-brand-card p-3 rounded-xl border border-gray-800">
-        <span id="labelStatInc" class="text-xs text-gray-400">Einnahmen heute</span>
+        <span class="text-xs text-gray-400">Einnahmen heute</span>
         <div id="statToday" class="text-xl font-bold text-green-400">0,00 €</div>
       </div>
       <div class="bg-brand-card p-3 rounded-xl border border-gray-800">
-        <span id="labelStatExp" class="text-xs text-gray-400">Ausgaben heute</span>
+        <span class="text-xs text-gray-400">Ausgaben heute</span>
         <div id="statExpenses" class="text-xl font-bold text-red-400">0,00 €</div>
       </div>
     </div>
@@ -162,8 +164,7 @@
   <div id="editModal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 hidden z-50 no-print">
     <div class="bg-brand-card w-full max-w-sm rounded-2xl p-5 border border-gray-800 space-y-3">
       <h3 class="text-lg font-bold text-yellow-400">Eintrag bearbeiten</h3>
-      <input type="hidden" id="editProfile">
-      <input type="hidden" id="editIndex">
+      <input type="hidden" id="editId">
 
       <div>
         <label class="block text-xs text-gray-400 mb-1">Profil</label>
@@ -211,10 +212,24 @@
   </div>
 
   <script>
+    // Supabase Verbindung initialisieren
+    const supabaseUrl = 'https://hsthlhogjuhntxwbtgte.supabase.co';
+    const supabaseKey = 'Sb_publishable_qtU-MvSy_sshRRqplF37Fg_neaf0Ko5';
+    const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
+
     let selectedType = 'Funk';
     let selectedPay = 'Bar';
     let currentProfile = 'Ranjot';
-    let entries = JSON.parse(localStorage.getItem('taxi_entries_multi') || '{"Ranjot":[], "Prabhjot":[]}');
+    let allEntries = [];
+
+    async function loadData() {
+      const { data, error } = await _supabase.from('taxi_entries').select('*').order('timestamp', { ascending: false });
+      if (!error) {
+        allEntries = data || [];
+        updateStats();
+        renderHistory();
+      }
+    }
 
     function changeProfile() {
       currentProfile = document.getElementById('activeProfile').value;
@@ -227,12 +242,12 @@
       const today = new Date().toISOString().split('T')[0];
       let todayInc = 0, todayExp = 0;
       
-      const profData = entries[currentProfile] || [];
-      profData.forEach(e => {
+      const profileData = allEntries.filter(e => e.profile === currentProfile);
+      profileData.forEach(e => {
         const d = e.timestamp.split('T')[0];
         if (d === today) {
-          if (e.kind === 'fahrt') todayInc += (e.price || 0) + (e.tip || 0);
-          if (e.kind === 'ausgabe') todayExp += (e.amount || 0);
+          if (e.kind === 'fahrt') todayInc += (Number(e.price) || 0) + (Number(e.tip) || 0);
+          if (e.kind === 'ausgabe') todayExp += (Number(e.amount) || 0);
         }
       });
 
@@ -262,54 +277,58 @@
       });
     }
 
-    function saveRide() {
+    async function saveRide() {
       const price = parseFloat(document.getElementById('inputPrice').value) || 0;
       const tip = parseFloat(document.getElementById('inputTip').value) || 0;
       if (price <= 0) return alert('Bitte Fahrpreis eingeben');
 
-      if (!entries[currentProfile]) entries[currentProfile] = [];
-      entries[currentProfile].unshift({
-        id: Date.now(),
+      const newEntry = {
+        profile: currentProfile,
         kind: 'fahrt',
         type: selectedType,
         pay: selectedPay,
         price,
         tip,
         timestamp: new Date().toISOString()
-      });
+      };
 
-      localStorage.setItem('taxi_entries_multi', JSON.stringify(entries));
+      const { error } = await _supabase.from('taxi_entries').insert([newEntry]);
+      if (error) {
+        alert('Fehler beim Speichern: ' + error.message);
+        return;
+      }
+
       document.getElementById('inputPrice').value = '';
       document.getElementById('inputTip').value = '';
-      updateStats();
-      renderHistory();
+      loadData();
     }
 
-    function saveExpense() {
+    async function saveExpense() {
       const amount = parseFloat(document.getElementById('expAmount').value) || 0;
       const cat = document.getElementById('expCategory').value;
       if (amount <= 0) return alert('Bitte Betrag eingeben');
 
-      if (!entries[currentProfile]) entries[currentProfile] = [];
-      entries[currentProfile].unshift({
-        id: Date.now(),
+      const newEntry = {
+        profile: currentProfile,
         kind: 'ausgabe',
         category: cat,
         amount,
         timestamp: new Date().toISOString()
-      });
+      };
 
-      localStorage.setItem('taxi_entries_multi', JSON.stringify(entries));
+      const { error } = await _supabase.from('taxi_entries').insert([newEntry]);
+      if (error) {
+        alert('Fehler beim Speichern: ' + error.message);
+        return;
+      }
+
       document.getElementById('expAmount').value = '';
-      updateStats();
-      renderHistory();
+      loadData();
     }
 
     function renderHistory() {
       const container = document.getElementById('historyList');
-      const profileData = entries[currentProfile] || [];
-      // Sortiere neueste zuerst
-      profileData.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+      const profileData = allEntries.filter(e => e.profile === currentProfile);
 
       if (profileData.length === 0) {
         container.innerHTML = `<p class="text-center text-gray-500 text-sm py-4">Noch keine Einträge für ${currentProfile}.</p>`;
@@ -323,12 +342,12 @@
             <div class="bg-brand-card p-3 rounded-xl border border-gray-800 flex justify-between items-center">
               <div>
                 <div class="font-bold text-sm">${e.type} (${e.pay})</div>
-                <div class="text-xs text-gray-400">${timeStr} · Trinkgeld: ${e.tip.toFixed(2)} €</div>
+                <div class="text-xs text-gray-400">${timeStr} · Trinkgeld: ${Number(e.tip).toFixed(2)} €</div>
               </div>
               <div class="text-right flex items-center gap-2">
-                <span class="font-bold text-green-400">+${(e.price + e.tip).toFixed(2)} €</span>
-                <button onclick="openEditModal('${currentProfile}', ${e.id})" class="text-xs bg-gray-800 px-2 py-1 rounded text-gray-300">✏️</button>
-                <button onclick="deleteEntry('${currentProfile}', ${e.id})" class="text-xs bg-red-950/50 text-red-400 px-2 py-1 rounded">🗑️</button>
+                <span class="font-bold text-green-400">+${(Number(e.price) + Number(e.tip)).toFixed(2)} €</span>
+                <button onclick="openEditModal(${e.id})" class="text-xs bg-gray-800 px-2 py-1 rounded text-gray-300">✏️</button>
+                <button onclick="deleteEntry(${e.id})" class="text-xs bg-red-950/50 text-red-400 px-2 py-1 rounded">🗑️</button>
               </div>
             </div>
           `;
@@ -340,9 +359,9 @@
                 <div class="text-xs text-gray-400">${timeStr}</div>
               </div>
               <div class="text-right flex items-center gap-2">
-                <span class="font-bold text-red-400">-${e.amount.toFixed(2)} €</span>
-                <button onclick="openEditModal('${currentProfile}', ${e.id})" class="text-xs bg-gray-800 px-2 py-1 rounded text-gray-300">✏️</button>
-                <button onclick="deleteEntry('${currentProfile}', ${e.id})" class="text-xs bg-red-950/50 text-red-400 px-2 py-1 rounded">🗑️</button>
+                <span class="font-bold text-red-400">-${Number(e.amount).toFixed(2)} €</span>
+                <button onclick="openEditModal(${e.id})" class="text-xs bg-gray-800 px-2 py-1 rounded text-gray-300">✏️</button>
+                <button onclick="deleteEntry(${e.id})" class="text-xs bg-red-950/50 text-red-400 px-2 py-1 rounded">🗑️</button>
               </div>
             </div>
           `;
@@ -350,15 +369,12 @@
       }).join('');
     }
 
-    function openEditModal(profile, id) {
-      const list = entries[profile] || [];
-      const index = list.findIndex(x => x.id === id);
-      if (index === -1) return;
-      const e = list[index];
+    function openEditModal(id) {
+      const e = allEntries.find(x => x.id === id);
+      if (!e) return;
 
-      document.getElementById('editProfile').value = profile;
-      document.getElementById('editIndex').value = index;
-      document.getElementById('editProfileSelect').value = profile;
+      document.getElementById('editId').value = e.id;
+      document.getElementById('editProfileSelect').value = e.profile;
 
       if (e.kind === 'fahrt') {
         document.getElementById('editRideFields').classList.remove('hidden');
@@ -381,38 +397,42 @@
       document.getElementById('editModal').classList.add('hidden');
     }
 
-    function applyEdit() {
-      const oldProfile = document.getElementById('editProfile').value;
-      const index = parseInt(document.getElementById('editIndex').value);
+    async function applyEdit() {
+      const id = parseInt(document.getElementById('editId').value);
       const newProfile = document.getElementById('editProfileSelect').value;
-      
-      const item = entries[oldProfile].splice(index, 1)[0];
       const newPrice = parseFloat(document.getElementById('editPrice').value) || 0;
+      
+      const e = allEntries.find(x => x.id === id);
+      if (!e) return;
 
-      if (item.kind === 'fahrt') {
-        item.type = document.getElementById('editType').value;
-        item.pay = document.getElementById('editPay').value;
-        item.price = newPrice;
-        item.tip = parseFloat(document.getElementById('editTip').value) || 0;
+      let updateData = { profile: newProfile };
+      if (e.kind === 'fahrt') {
+        updateData.type = document.getElementById('editType').value;
+        updateData.pay = document.getElementById('editPay').value;
+        updateData.price = newPrice;
+        updateData.tip = parseFloat(document.getElementById('editTip').value) || 0;
       } else {
-        item.amount = newPrice;
+        updateData.amount = newPrice;
       }
 
-      if (!entries[newProfile]) entries[newProfile] = [];
-      entries[newProfile].unshift(item);
+      const { error } = await _supabase.from('taxi_entries').update(updateData).eq('id', id);
+      if (error) {
+        alert('Fehler beim Aktualisieren: ' + error.message);
+        return;
+      }
 
-      localStorage.setItem('taxi_entries_multi', JSON.stringify(entries));
       closeEditModal();
-      updateStats();
-      renderHistory();
+      loadData();
     }
 
-    function deleteEntry(profile, id) {
+    async function deleteEntry(id) {
       if (confirm('Eintrag wirklich löschen?')) {
-        entries[profile] = entries[profile].filter(x => x.id !== id);
-        localStorage.setItem('taxi_entries_multi', JSON.stringify(entries));
-        updateStats();
-        renderHistory();
+        const { error } = await _supabase.from('taxi_entries').delete().eq('id', id);
+        if (error) {
+          alert('Fehler beim Löschen: ' + error.message);
+          return;
+        }
+        loadData();
       }
     }
 
@@ -436,29 +456,27 @@
 
     function getTargetData(range) {
       const scope = document.getElementById('exportScope').value;
-      let targetProfiles = scope === 'both' ? Object.keys(entries) : [currentProfile];
+      let targetProfiles = scope === 'both' ? ['Ranjot', 'Prabhjot'] : [currentProfile];
       const now = new Date();
       let filtered = [];
 
-      targetProfiles.forEach(prof => {
-        (entries[prof] || []).forEach(e => {
-          const d = new Date(e.timestamp);
-          let match = false;
-          if (range === 'all') match = true;
-          else if (range === 'day' && d.toDateString() === now.toDateString()) match = true;
-          else if (range === 'week') {
-            const oneJan = new Date(now.getFullYear(), 0, 1);
-            const weekNow = Math.ceil((((now - oneJan) / 86400000) + oneJan.getDay() + 1) / 7);
-            const weekEntry = Math.ceil((((d - oneJan) / 86400000) + oneJan.getDay() + 1) / 7);
-            if (weekNow === weekEntry && d.getFullYear() === now.getFullYear()) match = true;
-          } else if (range === 'month' && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()) match = true;
-          else if (range === 'year' && d.getFullYear() === now.getFullYear()) match = true;
+      allEntries.forEach(e => {
+        if (!targetProfiles.includes(e.profile)) return;
+        const d = new Date(e.timestamp);
+        let match = false;
+        if (range === 'all') match = true;
+        else if (range === 'day' && d.toDateString() === now.toDateString()) match = true;
+        else if (range === 'week') {
+          const oneJan = new Date(now.getFullYear(), 0, 1);
+          const weekNow = Math.ceil((((now - oneJan) / 86400000) + oneJan.getDay() + 1) / 7);
+          const weekEntry = Math.ceil((((d - oneJan) / 86400000) + oneJan.getDay() + 1) / 7);
+          if (weekNow === weekEntry && d.getFullYear() === now.getFullYear()) match = true;
+        } else if (range === 'month' && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()) match = true;
+        else if (range === 'year' && d.getFullYear() === now.getFullYear()) match = true;
 
-          if (match) filtered.push({ ...e, profile: prof });
-        });
+        if (match) filtered.push(e);
       });
 
-      filtered.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
       return filtered;
     }
 
@@ -476,12 +494,12 @@
       data.forEach(e => {
         const dt = new Date(e.timestamp).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' });
         if (e.kind === 'fahrt') {
-          totalInc += e.price;
-          totalTip += e.tip;
-          html += `<tr><td>${dt}</td><td><b>${e.profile}</b></td><td>Fahrt: ${e.type}</td><td>${e.pay}</td><td>${e.price.toFixed(2)} €</td><td>${e.tip.toFixed(2)} €</td></tr>`;
+          totalInc += Number(e.price);
+          totalTip += Number(e.tip);
+          html += `<tr><td>${dt}</td><td><b>${e.profile}</b></td><td>Fahrt: ${e.type}</td><td>${e.pay}</td><td>${Number(e.price).toFixed(2)} €</td><td>${Number(e.tip).toFixed(2)} €</td></tr>`;
         } else {
-          totalExp += e.amount;
-          html += `<tr><td>${dt}</td><td><b>${e.profile}</b></td><td style="color:red">Ausgabe: ${e.category}</td><td>-</td><td style="color:red">-${e.amount.toFixed(2)} €</td><td>-</td></tr>`;
+          totalExp += Number(e.amount);
+          html += `<tr><td>${dt}</td><td><b>${e.profile}</b></td><td style="color:red">Ausgabe: ${e.category}</td><td>-</td><td style="color:red">-${Number(e.amount).toFixed(2)} €</td><td>-</td></tr>`;
         }
       });
       html += `</table>`;
@@ -504,18 +522,16 @@
     }
 
     function downloadCSV() {
-      const scope = document.getElementById('exportScope').value;
-      let targetProfiles = scope === 'both' ? Object.keys(entries) : [currentProfile];
+      const data = getTargetData('all');
+      if (data.length === 0) return alert('Keine Daten zum Exportieren.');
       
       let csv = 'Profil;Datum;Typ;Art;Zahlung;Preis;Trinkgeld;Ausgabe\n';
-      targetProfiles.forEach(prof => {
-        (entries[prof] || []).forEach(e => {
-          if (e.kind === 'fahrt') {
-            csv += `${prof};${e.timestamp};Fahrt;${e.type};${e.pay};${e.price};${e.tip};0\n`;
-          } else {
-            csv += `${prof};${e.timestamp};Ausgabe;${e.category};-;0;0;${e.amount}\n`;
-          }
-        });
+      data.forEach(e => {
+        if (e.kind === 'fahrt') {
+          csv += `${e.profile};${e.timestamp};Fahrt;${e.type};${e.pay};${e.price};${e.tip};0\n`;
+        } else {
+          csv += `${e.profile};${e.timestamp};Ausgabe;${e.category};-;0;0;${e.amount}\n`;
+        }
       });
 
       const blob = new Blob([csv], { type: 'text/csv' });
@@ -525,8 +541,8 @@
       a.click();
     }
 
-    updateStats();
-    renderHistory();
+    // App beim Start laden
+    loadData();
   </script>
 </body>
 </html>
